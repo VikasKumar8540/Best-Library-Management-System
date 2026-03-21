@@ -2,6 +2,7 @@ Best Library Management System
 
  Author:-
 Made by Your Name: Vikas kumar
+Contact: kvikas2302@gmail.com
 
 This is a web based Library Management System made using PHP, MySQL and simple HTML, CSS, JS.
 It has three main users — Admin, Librarian and Student. Each one have their own dashboard and features.
