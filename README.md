@@ -1,7 +1,7 @@
 Best Library Management System
 
  Author:-
-Made by Your Name: Vikas kumar
+Vikas kumar
 Contact: kvikas2302@gmail.com
 
 This is a web based Library Management System made using PHP, MySQL and simple HTML, CSS, JS.
