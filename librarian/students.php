@@ -13,16 +13,21 @@ if (isset($_POST['add_student'])) {
     $sid   = clean($_POST['student_id']);
     $addr  = clean($_POST['address']);
 
-    // Check duplicate email
-    $chkEmail = $conn->query("SELECT id FROM users WHERE email='$email'");
-    if ($chkEmail->num_rows) {
+    if (!$name) {
+        $err = 'Full name is required.';
+    } elseif (!preg_match('/^[a-zA-Z\s\'\-\.]+$/', $name)) {
+        $err = 'Name must contain letters only (no numbers or special characters).';
+    } elseif ($phone && !preg_match('/^[0-9]+$/', $phone)) {
+        $err = 'Phone number can only contain digits (0–9).';
+    } elseif ($phone && strlen($phone) < 10) {
+        $err = 'Phone number must be at least 10 digits.';
+    } elseif ($phone && strlen($phone) > 15) {
+        $err = 'Phone number cannot exceed 15 digits.';
+    } elseif ($conn->query("SELECT id FROM users WHERE email='$email'")->num_rows) {
         $err = 'A student with this email already exists.';
-    }
-    // Check duplicate student ID (only if provided)
-    elseif ($sid && $conn->query("SELECT id FROM users WHERE student_id='$sid'")->num_rows) {
+    } elseif ($sid && $conn->query("SELECT id FROM users WHERE student_id='$sid'")->num_rows) {
         $err = 'A student with this Student ID already exists.';
-    }
-    else {
+    } else {
         $stmt = $conn->prepare("INSERT INTO users (name,email,password,role,phone,student_id,address) VALUES (?,?,'$pass','student',?,?,?)");
         $stmt->bind_param("sssss", $name, $email, $phone, $sid, $addr);
         if ($stmt->execute()) $msg = 'Student added!';
@@ -59,34 +64,54 @@ $students = $conn->query("SELECT u.*,
   <div class="card-header">
     <div class="card-title"><i class="fas fa-user-plus"></i> Add New Student</div>
   </div>
-  <form method="POST">
+  <form method="POST" id="addStudentForm" novalidate>
     <div class="grid-3">
+
       <div class="form-group">
         <label class="form-label">Full Name *</label>
-        <input type="text" name="name" class="form-control" required placeholder="Student's full name">
+        <input type="text" name="name" id="nameInput" class="form-control" required
+          placeholder="Student's full name"
+          oninput="validateName(this)">
+        <small id="nameError" style="color:var(--danger);font-size:12px;display:none;margin-top:4px">
+          <i class="fas fa-exclamation-circle"></i> Name must contain letters only.
+        </small>
       </div>
+
       <div class="form-group">
         <label class="form-label">Email *</label>
         <input type="email" name="email" class="form-control" required placeholder="student@email.com">
       </div>
+
       <div class="form-group">
         <label class="form-label">Password *</label>
         <input type="text" name="password" class="form-control" required placeholder="Set a password">
       </div>
+
       <div class="form-group">
         <label class="form-label">Student ID <small style="font-weight:400;color:var(--muted)">(must be unique)</small></label>
         <input type="text" name="student_id" class="form-control" placeholder="e.g. STU003">
       </div>
+
       <div class="form-group">
-        <label class="form-label">Phone</label>
-        <input type="text" name="phone" class="form-control" placeholder="Mobile number">
+        <label class="form-label">Phone <small style="font-weight:400;color:var(--muted)">(10–15 digits)</small></label>
+        <input type="text" name="phone" id="phoneInput" class="form-control"
+          placeholder="e.g. 9876543210"
+          oninput="validatePhone(this)"
+          maxlength="15">
+        <small id="phoneError" style="color:var(--danger);font-size:12px;display:none;margin-top:4px">
+          <i class="fas fa-exclamation-circle"></i> Enter a valid phone number (10–15 digits).
+        </small>
       </div>
+
       <div class="form-group">
         <label class="form-label">Address</label>
         <input type="text" name="address" class="form-control" placeholder="City, State">
       </div>
+
     </div>
-    <button type="submit" name="add_student" class="btn btn-primary"><i class="fas fa-user-plus"></i> Add Student</button>
+    <button type="submit" name="add_student" class="btn btn-primary">
+      <i class="fas fa-user-plus"></i> Add Student
+    </button>
   </form>
 </div>
 
@@ -136,5 +161,71 @@ $students = $conn->query("SELECT u.*,
     </table>
   </div>
 </div>
+
+<script>
+function validateName(input) {
+  const valid = /^[a-zA-Z\s'\-\.]*$/.test(input.value);
+  const errEl = document.getElementById('nameError');
+  if (!valid) {
+    input.value             = input.value.replace(/[^a-zA-Z\s'\-\.]/g, '');
+    input.style.borderColor = 'var(--danger)';
+    input.style.boxShadow   = '0 0 0 3px rgba(220,38,38,0.1)';
+    errEl.style.display     = 'block';
+  } else {
+    input.style.borderColor = input.value.length > 0 ? 'var(--success)' : '';
+    input.style.boxShadow   = '';
+    errEl.style.display     = 'none';
+  }
+}
+
+function validatePhone(input) {
+  const errEl = document.getElementById('phoneError');
+
+  // Strip non-digits in real time
+  input.value = input.value.replace(/[^0-9]/g, '');
+
+  const len = input.value.length;
+
+  if (len === 0) {
+    input.style.borderColor = '';
+    input.style.boxShadow   = '';
+    errEl.style.display     = 'none';
+  } else if (len < 10) {
+    input.style.borderColor = 'var(--danger)';
+    input.style.boxShadow   = '0 0 0 3px rgba(220,38,38,0.1)';
+    errEl.style.display     = 'block';
+    errEl.innerHTML         = '<i class="fas fa-exclamation-circle"></i> Phone number must be at least 10 digits.';
+  } else if (len > 15) {
+    input.style.borderColor = 'var(--danger)';
+    input.style.boxShadow   = '0 0 0 3px rgba(220,38,38,0.1)';
+    errEl.style.display     = 'block';
+    errEl.innerHTML         = '<i class="fas fa-exclamation-circle"></i> Phone number cannot exceed 15 digits.';
+  } else {
+    input.style.borderColor = 'var(--success)';
+    input.style.boxShadow   = '';
+    errEl.style.display     = 'none';
+  }
+}
+
+document.getElementById('addStudentForm').addEventListener('submit', function(e) {
+  const nameInput  = document.getElementById('nameInput');
+  const phoneInput = document.getElementById('phoneInput');
+  const nameVal    = nameInput.value.trim();
+  const phoneVal   = phoneInput.value.trim();
+
+  if (!nameVal || !/^[a-zA-Z\s'\-\.]+$/.test(nameVal)) {
+    e.preventDefault();
+    validateName(nameInput);
+    nameInput.focus();
+    return;
+  }
+
+  if (phoneVal && (phoneVal.length < 10 || phoneVal.length > 15)) {
+    e.preventDefault();
+    validatePhone(phoneInput);
+    phoneInput.focus();
+  }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
