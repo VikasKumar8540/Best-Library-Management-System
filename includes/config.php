@@ -96,3 +96,12 @@ function getPendingRequests() {
     $r = $conn->query("SELECT COUNT(*) as cnt FROM book_requests WHERE status='pending'");
     return $r ? $r->fetch_assoc()['cnt'] : 0;
 }
+
+// Mail Configuration (PHPMailer)
+define('MAIL_HOST',       'smtp.gmail.com');
+define('MAIL_USERNAME',   'kvikas2302@gmail.com');   // Your Gmail address
+define('MAIL_PASSWORD',   'xuofkdpjdosajhfg');    // Your Gmail App Password
+define('MAIL_PORT',       587);
+define('MAIL_FROM_NAME',  APP_NAME);
+
+?>

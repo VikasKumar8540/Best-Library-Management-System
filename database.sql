@@ -13,9 +13,10 @@ CREATE TABLE users (
     role ENUM('admin','librarian','student') NOT NULL,
     phone VARCHAR(15),
     address TEXT,
-    student_id VARCHAR(20) UNIQUE NOT NULL,
+    student_id VARCHAR(50) NULL DEFAULT NULL,
     profile_pic VARCHAR(255) DEFAULT 'default.png',
     status ENUM('active','inactive') DEFAULT 'active',
+    avatar VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -126,5 +127,12 @@ INSERT INTO books (title, author, isbn, category, publisher, year, total_copies,
 ('Calculus Early Transcendentals', 'James Stewart', '978-1285741550', 'Mathematics', 'Cengage', 2015, 3, 3, 'Calculus textbook for engineers.'),
 ('Database System Concepts', 'Abraham Silberschatz', '978-0073523323', 'Computer Science', 'McGraw-Hill', 2010, 2, 2, 'Fundamental database concepts.');
 
+CREATE TABLE password_resets (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  email      VARCHAR(255) NOT NULL,
+  otp        VARCHAR(255) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
-ALTER TABLE users ADD COLUMN avatar VARCHAR(255) DEFAULT NULL;
+  ALTER TABLE password_resets ADD COLUMN used TINYINT(1) NOT NULL DEFAULT 0;
+);

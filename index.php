@@ -45,6 +45,10 @@ if (isset($_GET['error']) && $_GET['error'] === 'unauthorized') {
     $error = 'You are not authorized to access that page.';
 }
 
+if (isset($_GET['msg']) && $_GET['msg'] === 'password_reset') {
+    $success = 'Password reset successfully! You can now sign in with your new password.';
+}
+
 // Redirect if already logged in
 if (isLoggedIn()) {
     if ($_SESSION['role'] === 'admin')         redirect(APP_URL . '/admin/dashboard.php');
@@ -267,6 +271,23 @@ if (isLoggedIn()) {
   }
   .input-icon .form-control { padding-left: 40px; }
 
+  /* Forgot password link row */
+  .pw-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+  }
+  .pw-label-row .form-label { margin-bottom: 0; }
+  .forgot-link {
+    font-size: 12px;
+    color: var(--gold);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color .2s;
+  }
+  .forgot-link:hover { color: var(--rust); text-decoration: underline; }
+
   .btn-login {
     width: 100%;
     padding: 14px;
@@ -355,7 +376,10 @@ if (isLoggedIn()) {
     </div>
 
     <?php if ($error): ?>
-    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?= $error ?></div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+    <?php if ($success): ?>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?= htmlspecialchars($success) ?></div>
     <?php endif; ?>
 
     <form method="POST" action="">
@@ -383,7 +407,12 @@ if (isLoggedIn()) {
       </div>
 
       <div class="form-group">
-        <label class="form-label">Password</label>
+        <div class="pw-label-row">
+          <label class="form-label">Password</label>
+          <a href="forgot-password.php" class="forgot-link">
+            <i class="fas fa-key"></i> Forgot Password?
+          </a>
+        </div>
         <div class="input-icon">
           <i class="fas fa-lock"></i>
           <input type="password" name="password" class="form-control"

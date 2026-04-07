@@ -5,9 +5,9 @@ $pageTitle = 'Librarians';
 $msg = $err = '';
 
 if (isset($_POST['add_librarian'])) {
-  $name = clean($_POST['name']);
+  $name  = clean($_POST['name']);
   $email = clean($_POST['email']);
-  $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
+  $pass  = password_hash($_POST['password'], PASSWORD_DEFAULT);
   $phone = clean($_POST['phone']);
 
   if (!$name) {
@@ -23,17 +23,18 @@ if (isset($_POST['add_librarian'])) {
   } elseif ($conn->query("SELECT id FROM users WHERE email='$email'")->num_rows) {
     $err = 'Email already exists.';
   } else {
-    $stmt = $conn->prepare("INSERT INTO users (name,email,password,role,phone) VALUES (?,?,'$pass','librarian',?)");
-    $stmt->bind_param("sss", $name, $email, $phone);
+    // Explicitly set student_id to NULL to avoid UNIQUE constraint clash on empty string
+    $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, phone, student_id) VALUES (?, ?, ?, 'librarian', ?, NULL)");
+    $stmt->bind_param("ssss", $name, $email, $pass, $phone);
     if ($stmt->execute())
       $msg = 'Librarian added!';
     else
-      $err = 'Error adding librarian.';
+      $err = 'Error adding librarian: ' . $conn->error;
   }
 }
 
 if (isset($_GET['toggle'])) {
-  $id = (int) $_GET['toggle'];
+  $id  = (int)$_GET['toggle'];
   $cur = $conn->query("SELECT status FROM users WHERE id=$id")->fetch_assoc()['status'];
   $new = $cur === 'active' ? 'inactive' : 'active';
   $conn->query("UPDATE users SET status='$new' WHERE id=$id");
@@ -45,9 +46,11 @@ $librarians = $conn->query("SELECT * FROM users WHERE role='librarian' ORDER BY 
 <?php include '../includes/header.php'; ?>
 
 <?php if ($msg): ?>
-  <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?= $msg ?></div><?php endif; ?>
+  <div class="alert alert-success"><i class="fas fa-check-circle"></i> <?= $msg ?></div>
+<?php endif; ?>
 <?php if ($err): ?>
-  <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?= $err ?></div><?php endif; ?>
+  <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <?= $err ?></div>
+<?php endif; ?>
 
 <div class="card" style="margin-bottom:22px">
   <div class="card-header">
@@ -57,8 +60,8 @@ $librarians = $conn->query("SELECT * FROM users WHERE role='librarian' ORDER BY 
     <div class="grid-3">
       <div class="form-group">
         <label class="form-label">Full Name *</label>
-        <input type="text" name="name" id="nameInput" class="form-control" required placeholder="Librarian's full name"
-          oninput="validateName(this)">
+        <input type="text" name="name" id="nameInput" class="form-control" required
+          placeholder="Librarian's full name" oninput="validateName(this)">
         <small id="nameError" style="color:var(--danger);font-size:12px;display:none;margin-top:4px">
           <i class="fas fa-exclamation-circle"></i> Name cannot contain numbers or special characters.
         </small>
@@ -72,9 +75,9 @@ $librarians = $conn->query("SELECT * FROM users WHERE role='librarian' ORDER BY 
         <input type="text" name="password" class="form-control" required placeholder="Set a password">
       </div>
       <div class="form-group">
-        <label class="form-label">Phone</label>
-        <input type="text" name="phone" id="phoneInput" class="form-control" placeholder="e.g. 09661306395"
-          oninput="validatePhone(this)" maxlength="15">
+        <label class="form-label">Phone <small style="font-weight:400;color:var(--muted)">(10–15 digits)</small></label>
+        <input type="text" name="phone" id="phoneInput" class="form-control"
+          placeholder="e.g. 09661306395" oninput="validatePhone(this)" maxlength="15">
         <small id="phoneError" style="color:var(--danger);font-size:12px;display:none;margin-top:4px">
           <i class="fas fa-exclamation-circle"></i> Phone number can only contain digits (0–9).
         </small>
@@ -95,19 +98,12 @@ $librarians = $conn->query("SELECT * FROM users WHERE role='librarian' ORDER BY 
     <table class="data-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Status</th>
-          <th>Joined</th>
-          <th>Action</th>
+          <th>#</th><th>Name</th><th>Email</th><th>Phone</th>
+          <th>Status</th><th>Joined</th><th>Action</th>
         </tr>
       </thead>
       <tbody>
-        <?php $librarians->data_seek(0);
-        $i = 1;
-        while ($l = $librarians->fetch_assoc()): ?>
+        <?php $librarians->data_seek(0); $i = 1; while ($l = $librarians->fetch_assoc()): ?>
           <tr>
             <td><?= $i++ ?></td>
             <td><strong><?= htmlspecialchars($l['name']) ?></strong></td>
@@ -118,8 +114,9 @@ $librarians = $conn->query("SELECT * FROM users WHERE role='librarian' ORDER BY 
               : '<span class="badge badge-danger">Inactive</span>' ?></td>
             <td><?= fmtDate($l['created_at']) ?></td>
             <td>
-              <a href="librarians.php?toggle=<?= $l['id'] ?>" class="btn btn-outline btn-sm"
-                data-confirm="<?= $l['status'] === 'active' ? 'Deactivate' : 'Activate' ?> this librarian?">
+              <a href="librarians.php?toggle=<?= $l['id'] ?>"
+                 class="btn btn-outline btn-sm"
+                 data-confirm="<?= $l['status'] === 'active' ? 'Deactivate' : 'Activate' ?> this librarian?">
                 <?= $l['status'] === 'active'
                   ? '<i class="fas fa-ban"></i> Deactivate'
                   : '<i class="fas fa-check"></i> Activate' ?>
@@ -133,60 +130,63 @@ $librarians = $conn->query("SELECT * FROM users WHERE role='librarian' ORDER BY 
 </div>
 
 <script>
-  function validateName(input) {
-    const val = input.value;
-    const hasDigit = /\d/.test(val);
-    const hasInvalid = /[^a-zA-Z\s.\'\-]/.test(val);
-    const errEl = document.getElementById('nameError');
+function validateName(input) {
+  const val        = input.value;
+  const hasDigit   = /\d/.test(val);
+  const hasInvalid = /[^a-zA-Z\s.\'\-]/.test(val);
+  const errEl      = document.getElementById('nameError');
 
-    if (hasDigit || hasInvalid) {
-      input.style.borderColor = 'var(--danger)';
-      input.style.boxShadow = '0 0 0 3px rgba(220,38,38,0.1)';
-      errEl.style.display = 'block';
-      errEl.innerHTML = hasDigit
-        ? '<i class="fas fa-exclamation-circle"></i> Name cannot contain numbers.'
-        : '<i class="fas fa-exclamation-circle"></i> Name can only contain letters, spaces, and basic punctuation (. \' -)';
-    } else {
-      input.style.borderColor = '';
-      input.style.boxShadow = '';
-      errEl.style.display = 'none';
-    }
+  if (hasDigit || hasInvalid) {
+    input.style.borderColor = 'var(--danger)';
+    input.style.boxShadow   = '0 0 0 3px rgba(220,38,38,0.1)';
+    errEl.style.display     = 'block';
+    errEl.innerHTML         = hasDigit
+      ? '<i class="fas fa-exclamation-circle"></i> Name cannot contain numbers.'
+      : '<i class="fas fa-exclamation-circle"></i> Name can only contain letters, spaces, and basic punctuation (. \' -)';
+  } else {
+    input.style.borderColor = '';
+    input.style.boxShadow   = '';
+    errEl.style.display     = 'none';
   }
+}
 
-  function validatePhone(input) {
-    const errEl = document.getElementById('phoneError');
-    input.value = input.value.replace(/[^0-9]/g, '');
+function validatePhone(input) {
+  const errEl = document.getElementById('phoneError');
+  input.value = input.value.replace(/[^0-9]/g, '');
+  const len   = input.value.length;
 
-    if (input.value.length > 0 && input.value.length < 10) {
-      input.style.borderColor = 'var(--danger)';
-      input.style.boxShadow = '0 0 0 3px rgba(220,38,38,0.1)';
-      errEl.style.display = 'block';
-      errEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> Phone number must be at least 10 digits.';
-    } else {
-      input.style.borderColor = '';
-      input.style.boxShadow = '';
-      errEl.style.display = 'none';
-    }
+  if (len > 0 && (len < 10 || len > 15)) {
+    input.style.borderColor = 'var(--danger)';
+    input.style.boxShadow   = '0 0 0 3px rgba(220,38,38,0.1)';
+    errEl.style.display     = 'block';
+    errEl.innerHTML         = len < 10
+      ? '<i class="fas fa-exclamation-circle"></i> Phone number must be at least 10 digits.'
+      : '<i class="fas fa-exclamation-circle"></i> Phone number cannot exceed 15 digits.';
+  } else {
+    input.style.borderColor = '';
+    input.style.boxShadow   = '';
+    errEl.style.display     = 'none';
   }
+}
 
-  document.getElementById('addLibrarianForm').addEventListener('submit', function (e) {
-    const nameInput = document.getElementById('nameInput');
-    const phoneInput = document.getElementById('phoneInput');
-    const nameVal = nameInput.value.trim();
-    const phoneVal = phoneInput.value.trim();
+document.getElementById('addLibrarianForm').addEventListener('submit', function(e) {
+  const nameInput  = document.getElementById('nameInput');
+  const phoneInput = document.getElementById('phoneInput');
+  const nameVal    = nameInput.value.trim();
+  const phoneVal   = phoneInput.value.trim();
 
-    if (/\d/.test(nameVal) || /[^a-zA-Z\s.\'\-]/.test(nameVal)) {
-      e.preventDefault();
-      validateName(nameInput);
-      nameInput.focus();
-      return;
-    }
-    if (phoneVal && (phoneVal.length < 7 || /[^0-9]/.test(phoneVal))) {
-      e.preventDefault();
-      validatePhone(phoneInput);
-      phoneInput.focus();
-    }
-  });
+  if (/\d/.test(nameVal) || /[^a-zA-Z\s.\'\-]/.test(nameVal)) {
+    e.preventDefault();
+    validateName(nameInput);
+    nameInput.focus();
+    return;
+  }
+  if (phoneVal && (phoneVal.length < 10 || phoneVal.length > 15)) {
+    e.preventDefault();
+    validatePhone(phoneInput);
+    phoneInput.focus();
+  }
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>

@@ -9,16 +9,20 @@ if (isset($_POST['send_notification'])) {
     $message    = clean($_POST['message']);
     $targetType = clean($_POST['target_type']);
     $targetId   = $targetType === 'student' ? (int)$_POST['target_student_id'] : null;
-    $sentBy     = $_SESSION['user_id'];
+    $sentBy     = (int)$_SESSION['user_id'];
 
-    if (!$title || !$message) { $err = 'Title and message are required.'; }
-    elseif ($targetType === 'student' && !$targetId) { $err = 'Please select a student.'; }
-    else {
+    if (!$title || !$message) {
+        $err = 'Title and message are required.';
+    } elseif ($targetType === 'student' && !$targetId) {
+        $err = 'Please select a student.';
+    } else {
         if ($targetId) {
-            $stmt = $conn->prepare("INSERT INTO notifications (title,message,sent_by,target_type,target_student_id) VALUES (?,?,?,?,?)");
-            $stmt->bind_param("ssissi", $title, $message, $sentBy, $targetType, $targetId);
+            // 5 params: title(s), message(s), sent_by(i), target_type(s), target_student_id(i)
+            $stmt = $conn->prepare("INSERT INTO notifications (title, message, sent_by, target_type, target_student_id) VALUES (?, ?, ?, ?, ?)");
+            $stmt->bind_param("ssisi", $title, $message, $sentBy, $targetType, $targetId);
         } else {
-            $stmt = $conn->prepare("INSERT INTO notifications (title,message,sent_by,target_type) VALUES (?,?,?,?)");
+            // 4 params: title(s), message(s), sent_by(i), target_type(s)
+            $stmt = $conn->prepare("INSERT INTO notifications (title, message, sent_by, target_type) VALUES (?, ?, ?, ?)");
             $stmt->bind_param("ssis", $title, $message, $sentBy, $targetType);
         }
         if ($stmt->execute()) $msg = 'Notification sent!';
@@ -45,7 +49,6 @@ $olderNotifs = $conn->query("SELECT n.*,u.name as sender, s.name as target_name
 $totalCount = (int)$conn->query("SELECT COUNT(*) as c FROM notifications")->fetch_assoc()['c'];
 $olderCount = max(0, $totalCount - 3);
 
-// Helper to render a single notification row (used twice below)
 function notifRow(array $n): void { ?>
   <div class="notif-row" style="border-bottom:1px solid var(--border);padding:12px 0">
     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:5px">
@@ -118,20 +121,16 @@ function notifRow(array $n): void { ?>
       <?php endif; ?>
     </div>
 
-    <!-- Always-visible: 3 most recent -->
     <?php if ($recentNotifs && $recentNotifs->num_rows > 0):
       while ($n = $recentNotifs->fetch_assoc()) notifRow($n);
     else: ?>
       <div class="empty-state"><i class="fas fa-bell-slash"></i><p>No notifications sent yet.</p></div>
     <?php endif; ?>
 
-    <!-- Hidden older notifications -->
     <?php if ($olderCount > 0): ?>
       <div id="olderList" style="display:none">
         <?php while ($n = $olderNotifs->fetch_assoc()) notifRow($n); ?>
       </div>
-
-      <!-- Toggle button -->
       <div style="padding-top:14px">
         <button id="toggleBtn" onclick="toggleOlder()" class="btn btn-outline btn-sm" style="width:100%">
           <i class="fas fa-chevron-down" id="toggleIcon"></i>
@@ -139,7 +138,6 @@ function notifRow(array $n): void { ?>
         </button>
       </div>
     <?php endif; ?>
-
   </div>
 </div>
 
