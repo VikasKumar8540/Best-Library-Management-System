@@ -519,6 +519,21 @@ if ($role === 'admin') {
     ];
 } else {
     $unread = getUnreadNotifications($uid);
+    $unreadChat  = 0;
+    $currentPage = basename($_SERVER['PHP_SELF']);
+
+    if ($currentPage === 'chat.php') {
+        // ON chat page — update last_chat_seen in DB to NOW, badge = 0
+        $conn->query("UPDATE users SET last_chat_seen = NOW() WHERE id = $uid");
+    } else {
+        // OFF chat page — count messages from others AFTER last_chat_seen
+        $seenRow  = $conn->query("SELECT last_chat_seen FROM users WHERE id = $uid")->fetch_assoc();
+        $lastSeen = $seenRow['last_chat_seen'] ?? '2000-01-01 00:00:00';
+        if (!$lastSeen) $lastSeen = '2000-01-01 00:00:00';
+        $chatRes  = $conn->query("SELECT COUNT(*) as c FROM student_messages WHERE student_id != $uid AND created_at > '$lastSeen'");
+        if ($chatRes) $unreadChat = (int)$chatRes->fetch_assoc()['c'];
+    }
+
     $navItems = [
         'main' => [
             ['href'=>'dashboard.php','icon'=>'fa-gauge-high','label'=>'Dashboard'],
@@ -528,6 +543,7 @@ if ($role === 'admin') {
         'communicate' => [
             ['href'=>'notifications.php','icon'=>'fa-bell','label'=>'Notifications','badge'=>$unread],
             ['href'=>'requests.php','icon'=>'fa-paper-plane','label'=>'Send Request'],
+            ['href'=>'chat.php','icon'=>'fa-comments','label'=>'Student Chat','badge'=>$unreadChat],
         ],
         'account' => [
             ['href'=>'fines.php','icon'=>'fa-coins','label'=>'My Fines'],

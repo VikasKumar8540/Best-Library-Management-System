@@ -136,3 +136,19 @@ CREATE TABLE password_resets (
 
   ALTER TABLE password_resets ADD COLUMN used TINYINT(1) NOT NULL DEFAULT 0;
 );
+
+CREATE TABLE student_messages (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  message    TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+ALTER TABLE users ADD COLUMN last_active DATETIME DEFAULT NULL;
+ALTER TABLE users ADD COLUMN typing_at   DATETIME DEFAULT NULL;
+
+ALTER TABLE student_messages ADD COLUMN reply_to INT DEFAULT NULL;
+ALTER TABLE student_messages ADD FOREIGN KEY (reply_to) REFERENCES student_messages(id) ON DELETE SET NULL;
+
+ALTER TABLE users ADD COLUMN last_chat_seen DATETIME DEFAULT NULL;
